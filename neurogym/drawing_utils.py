@@ -377,3 +377,274 @@ class CyberpunkDrawer:
             1,
             cv2.LINE_AA
         )
+    
+    @staticmethod
+    def draw_angle_arc(
+        image: np.ndarray,
+        center: Tuple[int, int],
+        angle: float,
+        target_angle: float = 90.0,
+        max_angle: float = 180.0,
+        radius: int = 35,
+        start_angle: float = -90.0,
+        inverted: bool = False
+    ) -> None:
+        """
+        Draw a curved arc at a joint showing current angle progress.
+        
+        The arc fills based on how close the current angle is to the target.
+        Color gradient: green (good) -> yellow -> pink (needs work)
+        
+        Args:
+            image: Image to draw on
+            center: Center point (x, y) of the arc (joint position)
+            angle: Current angle in degrees
+            target_angle: Target angle for exercise
+            max_angle: Maximum possible angle
+            radius: Radius of the arc in pixels
+            start_angle: Starting angle for the arc (OpenCV convention)
+            inverted: If True, lower angle = better (e.g., bicep curl)
+        """
+        if angle is None:
+            return
+        
+        # Calculate progress (0 to 1)
+        if inverted:
+            # Lower angle is better (e.g., bicep curl at top)
+            progress = 1.0 - (angle / max_angle)
+            target_progress = 1.0 - (target_angle / max_angle)
+        else:
+            # Higher angle is better up to target
+            progress = min(angle / target_angle, 1.0) if target_angle > 0 else 0
+            target_progress = 1.0
+        
+        # Calculate how close to target (for color)
+        if inverted:
+            closeness = 1.0 - abs(angle - target_angle) / max_angle
+        else:
+            closeness = 1.0 - abs(angle - target_angle) / max_angle
+        closeness = max(0.0, min(1.0, closeness))
+        
+        # Color gradient based on closeness to target
+        # Green (good) -> Yellow -> Pink (needs work)
+        if closeness > 0.7:
+            color = (0, 255, 0)  # Neon green - good
+        elif closeness > 0.4:
+            color = (0, 255, 255)  # Yellow - getting there
+        else:
+            color = (180, 105, 255)  # Hot pink - needs work
+        
+        # Draw background arc (dark)
+        cv2.ellipse(
+            image,
+            center,
+            (radius, radius),
+            0,
+            start_angle,
+            start_angle + 270,
+            (40, 40, 40),
+            2,
+            cv2.LINE_AA
+        )
+        
+        # Draw progress arc
+        end_angle = start_angle + (progress * 270)
+        cv2.ellipse(
+            image,
+            center,
+            (radius, radius),
+            0,
+            start_angle,
+            end_angle,
+            color,
+            3,
+            cv2.LINE_AA
+        )
+        
+        # Draw angle text
+        text = f"{int(angle)}°"
+        text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)[0]
+        text_x = center[0] - text_size[0] // 2
+        text_y = center[1] + radius + 15
+        
+        cv2.putText(
+            image,
+            text,
+            (text_x, text_y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.4,
+            color,
+            1,
+            cv2.LINE_AA
+        )
+    
+    @staticmethod
+    def draw_exercise_info(
+        image: np.ndarray,
+        exercise_name: str,
+        rep_count: int,
+        stage: str,
+        feedback: str = "",
+        hold_time: Optional[float] = None
+    ) -> None:
+        """
+        Draw exercise information panel with cyberpunk styling.
+        
+        Args:
+            image: Image to draw on
+            exercise_name: Name of the current exercise
+            rep_count: Current rep count
+            stage: Current exercise stage
+            feedback: Form feedback message
+            hold_time: Hold time for plank-type exercises
+        """
+        h, w = image.shape[:2]
+        
+        # Panel position (bottom-left)
+        panel_x = 10
+        panel_y = h - 140
+        panel_width = 280
+        panel_height = 130
+        
+        # Draw semi-transparent panel background
+        overlay = image.copy()
+        cv2.rectangle(
+            overlay,
+            (panel_x, panel_y),
+            (panel_x + panel_width, panel_y + panel_height),
+            (20, 20, 20),
+            -1
+        )
+        cv2.addWeighted(overlay, 0.7, image, 0.3, 0, image)
+        
+        # Draw border
+        cv2.rectangle(
+            image,
+            (panel_x, panel_y),
+            (panel_x + panel_width, panel_y + panel_height),
+            (255, 255, 0),  # Cyan border
+            1,
+            cv2.LINE_AA
+        )
+        
+        # Exercise name
+        cv2.putText(
+            image,
+            exercise_name.upper(),
+            (panel_x + 10, panel_y + 25),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 255, 0),  # Cyan
+            2,
+            cv2.LINE_AA
+        )
+        
+        # Rep counter (large)
+        rep_text = f"REPS: {rep_count}"
+        cv2.putText(
+            image,
+            rep_text,
+            (panel_x + 10, panel_y + 60),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.9,
+            (0, 255, 0),  # Neon green
+            2,
+            cv2.LINE_AA
+        )
+        
+        # Stage indicator
+        stage_color = (0, 255, 0) if stage.lower() in ["up", "hold"] else (0, 255, 255)
+        cv2.putText(
+            image,
+            f"Stage: {stage.upper()}",
+            (panel_x + 10, panel_y + 85),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            stage_color,
+            1,
+            cv2.LINE_AA
+        )
+        
+        # Hold time for plank
+        if hold_time is not None:
+            cv2.putText(
+                image,
+                f"Hold: {hold_time:.1f}s",
+                (panel_x + 150, panel_y + 85),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (0, 215, 255),  # Gold
+                1,
+                cv2.LINE_AA
+            )
+        
+        # Feedback message
+        if feedback:
+            # Choose color based on feedback type
+            if "great" in feedback.lower() or "good" in feedback.lower():
+                fb_color = (0, 255, 0)  # Green
+            else:
+                fb_color = (180, 105, 255)  # Hot pink
+            
+            cv2.putText(
+                image,
+                feedback[:35],  # Truncate long messages
+                (panel_x + 10, panel_y + 115),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.45,
+                fb_color,
+                1,
+                cv2.LINE_AA
+            )
+    
+    @staticmethod
+    def draw_rep_counter_large(
+        image: np.ndarray,
+        count: int,
+        position: Tuple[int, int] = None
+    ) -> None:
+        """
+        Draw a large, prominent rep counter.
+        
+        Args:
+            image: Image to draw on
+            count: Rep count to display
+            position: Optional position, defaults to top-right
+        """
+        h, w = image.shape[:2]
+        
+        if position is None:
+            position = (w - 120, 60)
+        
+        # Background circle
+        cv2.circle(image, position, 50, (20, 20, 20), -1)
+        cv2.circle(image, position, 50, (255, 255, 0), 2, cv2.LINE_AA)
+        
+        # Count text
+        text = str(count)
+        text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.5, 3)[0]
+        text_x = position[0] - text_size[0] // 2
+        text_y = position[1] + text_size[1] // 2
+        
+        cv2.putText(
+            image,
+            text,
+            (text_x, text_y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1.5,
+            (0, 255, 0),
+            3,
+            cv2.LINE_AA
+        )
+        
+        # "REPS" label below
+        cv2.putText(
+            image,
+            "REPS",
+            (position[0] - 25, position[1] + 70),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (255, 255, 0),
+            1,
+            cv2.LINE_AA
+        )

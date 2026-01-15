@@ -141,6 +141,9 @@ def main():
             print(f"Actual resolution: {frame_width}x{frame_height}")
             print("Starting capture...\n")
             
+            # Timestamp tracking for video mode
+            start_time = time.perf_counter()
+            
             while True:
                 frame_start = time.perf_counter()
                 
@@ -151,17 +154,18 @@ def main():
                     print("Failed to read frame, exiting...")
                     break
                 
-                # Process frame with MediaPipe
-                results = detector.process(frame_rgb)
+                # Process frame with MediaPipe (pass timestamp for video mode)
+                timestamp_ms = int((time.perf_counter() - start_time) * 1000)
+                detector.process(frame_rgb, timestamp_ms)
                 
                 # Extract structured landmarks (for future use)
-                landmarks = detector.extract_landmarks(results)
+                landmarks = detector.extract_landmarks()
                 
                 # Convert to BGR for display and drawing
                 frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
                 
-                # Draw cyberpunk overlays
-                frame_display = drawer.draw(frame_bgr, results)
+                # Draw cyberpunk overlays (pass detector which has landmark properties)
+                frame_display = drawer.draw(frame_bgr, detector)
                 
                 # Calculate FPS
                 frame_time = time.perf_counter() - frame_start
