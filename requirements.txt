@@ -1,0 +1,6 @@
+# NeuroGym - AI-Powered Fitness & Rehab Coach
+# Core dependencies for vision pipeline
+
+opencv-python>=4.8.0
+mediapipe>=0.10.0
+numpy>=1.24.0
